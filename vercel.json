@@ -15,8 +15,5 @@
       "src": "/(.*)",
       "dest": "api_server.py"
     }
-  ],
-  "env": {
-    "APIFY_API_TOKEN": "@apify_api_token"
-  }
+  ]
 }
