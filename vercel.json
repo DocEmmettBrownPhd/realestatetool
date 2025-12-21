@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api_server.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "api_server.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "api_server.py"
+    }
+  ],
+  "env": {
+    "APIFY_API_TOKEN": "@apify_api_token"
+  }
+}
