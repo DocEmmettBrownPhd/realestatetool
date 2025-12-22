@@ -1,6 +1,6 @@
 const { useState, useEffect, useRef } = React;
 
-const API_URL = 'http://localhost:5000';
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:5000' : '';
 
 function RealEstateAnalyzer() {
   const [propertyData, setPropertyData] = useState({
