@@ -423,15 +423,6 @@ def create_excel_report():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-
-@app.route('/')
-def index():
-    return send_file('index.html')
-
-@app.route('/complete_real_estate_analyzer.jsx')
-def jsx_file():
-    return send_file('complete_real_estate_analyzer.jsx')
-
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
