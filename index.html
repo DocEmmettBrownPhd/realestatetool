@@ -25,86 +25,46 @@ function RealEstateAnalyzer() {
   const [propertyData, setPropertyData] = useState({
     address: '',
     purchasePrice: '',
-    currentSqft: '',
-    beds: '3',
-    baths: '2',
-    lotSize: '0.25',
-    yearBuilt: '2000',
     zestimate: 0,
-    rent_zestimate: 0,
-    latitude: null,
-    longitude: null,
-    zillow_url: '',
-    image_url: '',
-    status: ''
+    currentSqft: '',
+    beds: '',
+    baths: ''
   });
   
   const [compsData, setCompsData] = useState([]);
   const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [fetchingProperty, setFetchingProperty] = useState(false);
   const [error, setError] = useState(null);
+  
   const addressInputRef = useRef(null);
   const autocompleteRef = useRef(null);
 
   useEffect(() => {
     const initAutocomplete = async () => {
-      try {
-        const { Autocomplete } = await google.maps.importLibrary("places");
-        
-        if (addressInputRef.current) {
-          autocompleteRef.current = new Autocomplete(addressInputRef.current, {
-            types: ['address'],
-            componentRestrictions: { country: 'us' },
-            fields: ['formatted_address', 'geometry']
-          });
+      const { Autocomplete } = await google.maps.importLibrary("places");
+      if (addressInputRef.current) {
+        autocompleteRef.current = new Autocomplete(addressInputRef.current, {
+          types: ['address'],
+          componentRestrictions: { country: 'us' },
+          fields: ['formatted_address']
+        });
 
-          // Handle selection via Click or Enter
-          autocompleteRef.current.addListener('place_changed', () => {
-            const place = autocompleteRef.current.getPlace();
-            
-            if (place && place.formatted_address) {
-              handleAddressSelection(place.formatted_address);
-            }
-          });
-
-          // Prevent page refresh but allow "Enter" to pick the top result
-          addressInputRef.current.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              // If the dropdown is open, Google handles it. 
-              // If not, we prevent the browser from reloading the page.
-              const googleDropdown = document.querySelector('.pac-container');
-              if (googleDropdown && googleDropdown.style.display !== 'none') {
-                // Let Google's library handle the Enter key to select the item
-              } else {
-                e.preventDefault();
-              }
-            }
-          });
-        }
-      } catch (err) {
-        console.error("Google Maps Initialization Error:", err);
+        // This triggers when you CLICK a suggestion or HIT ENTER on a suggestion
+        autocompleteRef.current.addListener('place_changed', () => {
+          const place = autocompleteRef.current.getPlace();
+          if (place && place.formatted_address) {
+            handleSearch(place.formatted_address);
+          }
+        });
       }
     };
-
     initAutocomplete();
   }, []);
 
-  const handleAddressSelection = (selectedAddress) => {
-    // 1. Visually update the input
-    if (addressInputRef.current) addressInputRef.current.value = selectedAddress;
-    
-    // 2. Update React state
-    setPropertyData(prev => ({ ...prev, address: selectedAddress }));
-    
-    // 3. Kick off the backend search
-    fetchPropertyAndComps(selectedAddress);
-  };
-
-  const fetchPropertyAndComps = async (address) => {
+  const handleSearch = async (address) => {
+    if (!address) return;
     setFetchingProperty(true);
     setError(null);
-    setCompsData([]);
     
     try {
       const response = await fetch(`${API_URL}/api/lookup-property`, {
@@ -112,103 +72,63 @@ function RealEstateAnalyzer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address })
       });
-      
       const data = await response.json();
       
       if (response.ok && data.subject) {
-        const subject = data.subject;
         setPropertyData(prev => ({
           ...prev,
           address: address,
-          currentSqft: subject.sqft || prev.currentSqft,
-          beds: subject.beds || prev.beds,
-          baths: subject.baths || prev.baths,
-          lotSize: subject.lot_size || prev.lotSize,
-          yearBuilt: subject.year_built || prev.yearBuilt,
-          zestimate: subject.zestimate || 0,
-          rent_zestimate: subject.rent_zestimate || 0,
-          latitude: subject.latitude,
-          longitude: subject.longitude,
-          zipcode: subject.zipcode,
-          zillow_url: subject.zillow_url || '',
-          image_url: subject.image_url || '',
-          status: subject.status || ''
+          ...data.subject
         }));
         setCompsData(data.comps || []);
       } else {
-        setError('Address recognized by Google, but no real estate data found in database.');
+        setError("Address found, but no market data available for this property.");
       }
     } catch (err) {
-      setError('Backend connection failed. Is your Python server running?');
+      setError("Backend server is not responding.");
     } finally {
       setFetchingProperty(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    setPropertyData({ ...propertyData, [e.target.name]: e.target.value });
-  };
-
-  const analyzeProperty = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_URL}/api/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...propertyData, comps: compsData })
-      });
-      const data = await response.json();
-      if (response.ok) setResults(data);
-      else setError(data.error || 'Analysis failed');
-    } catch (err) {
-      setError('Analysis server connection error.');
-    } finally {
-      setLoading(false);
-    }
+  const onFormSubmit = (e) => {
+    e.preventDefault(); // Prevents the page from reloading
+    const manualAddress = addressInputRef.current.value;
+    handleSearch(manualAddress);
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center' }}>Real Estate Investment Analyzer</h1>
+    <div style={{ maxWidth: '800px', margin: '50px auto', fontFamily: 'sans-serif', padding: '20px' }}>
+      <h1>Investment Analyzer</h1>
       
-      <div style={{ background: '#f4f4f4', padding: '20px', borderRadius: '8px' }}>
-        <label style={{ fontWeight: 'bold' }}>Search Property Address</label>
-        <input
-          ref={addressInputRef}
-          placeholder="Enter address and press Enter or select from list..."
-          style={{ width: '100%', padding: '15px', marginTop: '10px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc' }}
-        />
-        {fetchingProperty && <p style={{ color: 'blue' }}>⏳ Fetching property and comp data...</p>}
-      </div>
-
-      {error && <div style={{ color: 'red', marginTop: '20px', padding: '10px', background: '#ffdada' }}>{error}</div>}
-
-      {propertyData.zestimate > 0 && (
-        <div style={{ marginTop: '20px', border: '1px solid #ddd', padding: '20px' }}>
-          <h3>Property Found: {propertyData.address}</h3>
-          <p>Zestimate: <strong>${propertyData.zestimate.toLocaleString()}</strong></p>
-          <p>Beds: {propertyData.beds} | Baths: {propertyData.baths} | Sqft: {propertyData.currentSqft}</p>
-          
-          <div style={{ marginTop: '20px' }}>
-            <label>Purchase Price ($)</label><br/>
-            <input 
-              name="purchasePrice" 
-              type="number" 
-              onChange={handleInputChange} 
-              style={{ padding: '10px', width: '200px', marginRight: '10px' }} 
-            />
-            <button onClick={analyzeProperty} style={{ padding: '10px 20px', cursor: 'pointer' }}>
-              {loading ? 'Analyzing...' : 'Analyze Investment'}
-            </button>
-          </div>
+      <form onSubmit={onFormSubmit} style={{ marginBottom: '30px' }}>
+        <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '10px' }}>
+          Property Address
+        </label>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <input
+            ref={addressInputRef}
+            type="text"
+            placeholder="Type address and press Enter..."
+            style={{ flex: 1, padding: '12px', fontSize: '16px', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <button type="submit" style={{ padding: '12px 20px', cursor: 'pointer', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Search
+          </button>
         </div>
-      )}
+        <small style={{ color: '#666' }}>Tip: Select from the dropdown or type and hit Enter.</small>
+      </form>
 
-      {results && (
-        <div style={{ marginTop: '20px', background: '#e7ffe7', padding: '20px' }}>
-          <h2>Result: {results.best_scenario?.name}</h2>
-          <p>ROI: {results.best_scenario?.roi}%</p>
+      {fetchingProperty && <div style={{ color: 'blue', fontWeight: 'bold' }}>🔍 Searching...</div>}
+      {error && <div style={{ color: 'red', background: '#fee', padding: '10px', borderRadius: '4px' }}>{error}</div>}
+
+      {propertyData.address && propertyData.zestimate > 0 && (
+        <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
+          <h2>{propertyData.address}</h2>
+          <p>Zestimate: <strong>${propertyData.zestimate.toLocaleString()}</strong></p>
+          <button style={{ padding: '10px 20px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Run ROI Analysis
+          </button>
         </div>
       )}
     </div>
