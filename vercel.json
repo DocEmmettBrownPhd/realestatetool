@@ -2,24 +2,29 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "api_server.py",
       "use": "@vercel/python"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
     }
   ],
   "routes": [
     {
-      "src": "/",
-      "dest": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "api_server.py"
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "$1"
     }
   ]
 }
+```
+
+---
+
+## **requirements.txt**
+```
+Flask==3.0.0
+Flask-CORS==4.0.0
+requests==2.31.0
+reportlab==4.0.7
+openpyxl==3.1.2
