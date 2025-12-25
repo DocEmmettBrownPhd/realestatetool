@@ -85,6 +85,7 @@ def fetch_property_details(address):
         
         return None
     except Exception as e:
+        print(f"Error fetching property details: {e}")
         return None
 
 def fetch_comps(zipcode, beds, baths, sqft, year_built):
@@ -159,6 +160,7 @@ def fetch_comps(zipcode, beds, baths, sqft, year_built):
         
         return []
     except Exception as e:
+        print(f"Error fetching comps: {e}")
         return []
 
 @app.route('/api/lookup-property', methods=['POST'])
@@ -240,6 +242,8 @@ def analyze_property():
         
         scenarios.append({
             'name': f'Fix & Flip ({level.title()})',
+            'rehab_level': level,
+            'rehab_cost': round(rehab),
             'total_investment': round(total_investment),
             'sale_proceeds': round(sale_proceeds),
             'profit': round(profit),
@@ -250,6 +254,8 @@ def analyze_property():
     assignment_fee = purchase * 0.06
     scenarios.append({
         'name': 'Wholesale Assignment',
+        'rehab_level': 'none',
+        'rehab_cost': 0,
         'total_investment': 1000,
         'profit': round(assignment_fee),
         'roi': round((assignment_fee / 1000 * 100), 1),
