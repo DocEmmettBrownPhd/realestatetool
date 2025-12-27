@@ -29,69 +29,47 @@ def fetch_subject_property(address):
     actor_input = {"addresses": address}
     
     try:
+        # Use synchronous call
         response = requests.post(
-            'https://api.apify.com/v2/acts/aknahin~zillow-property-info-scraper/runs',
-            headers={'Authorization': f'Bearer {APIFY_TOKEN}'},
+            'https://api.apify.com/v2/acts/aknahin~zillow-property-info-scraper/run-sync-get-dataset-items?token=' + APIFY_TOKEN,
             json=actor_input,
-            timeout=120
+            timeout=300
         )
         
-        if response.status_code != 201:
+        if response.status_code != 200 and response.status_code != 201:
             return None
         
-        run_data = response.json()
-        run_id = run_data['data']['id']
+        properties = response.json()
         
-        for i in range(60):
-            time.sleep(3)
-            status_response = requests.get(
-                f'https://api.apify.com/v2/actor-runs/{run_id}',
-                headers={'Authorization': f'Bearer {APIFY_TOKEN}'}
-            )
-            status_data = status_response.json()
-            status = status_data['data']['status']
+        if properties and len(properties) > 0:
+            prop = properties[0]
+            if prop.get('error'):
+                return None
             
-            if status == 'SUCCEEDED':
-                dataset_id = status_data['data']['defaultDatasetId']
-                results_response = requests.get(
-                    f'https://api.apify.com/v2/datasets/{dataset_id}/items',
-                    headers={'Authorization': f'Bearer {APIFY_TOKEN}'}
-                )
-                
-                properties = results_response.json()
-                
-                if properties and len(properties) > 0:
-                    prop = properties[0]
-                    if prop.get('error'):
-                        return None
-                    
-                    full_address = prop.get('address', address)
-                    address_parts = full_address.split(',')
-                    city = address_parts[1].strip() if len(address_parts) > 1 else ''
-                    state_zip = address_parts[2].strip() if len(address_parts) > 2 else ''
-                    state = state_zip.split()[0] if state_zip else ''
-                    zipcode = state_zip.split()[1] if len(state_zip.split()) > 1 else ''
-                    
-                    return {
-                        'address': full_address,
-                        'city': city,
-                        'state': state,
-                        'zipcode': zipcode,
-                        'beds': prop.get('beds', 3),
-                        'baths': prop.get('baths', 2),
-                        'sqft': prop.get('area', 1800),
-                        'year_built': prop.get('yearBuilt', 2000),
-                        'lot_size': prop.get('lotSize', 0.25),
-                        'latitude': prop.get('latLong', {}).get('latitude'),
-                        'longitude': prop.get('latLong', {}).get('longitude'),
-                        'zestimate': prop.get('zestimate', 0),
-                        'zpid': prop.get('zpid', ''),
-                        'status': prop.get('statusText', 'Unknown'),
-                        'image_url': prop.get('imgSrc', '')
-                    }
-                return None
-            elif status == 'FAILED':
-                return None
+            full_address = prop.get('address', address)
+            address_parts = full_address.split(',')
+            city = address_parts[1].strip() if len(address_parts) > 1 else ''
+            state_zip = address_parts[2].strip() if len(address_parts) > 2 else ''
+            state = state_zip.split()[0] if state_zip else ''
+            zipcode = state_zip.split()[1] if len(state_zip.split()) > 1 else ''
+            
+            return {
+                'address': full_address,
+                'city': city,
+                'state': state,
+                'zipcode': zipcode,
+                'beds': prop.get('beds', 3),
+                'baths': prop.get('baths', 2),
+                'sqft': prop.get('area', 1800),
+                'year_built': prop.get('yearBuilt', 2000),
+                'lot_size': prop.get('lotSize', 0.25),
+                'latitude': prop.get('latLong', {}).get('latitude'),
+                'longitude': prop.get('latLong', {}).get('longitude'),
+                'zestimate': prop.get('zestimate', 0),
+                'zpid': prop.get('zpid', ''),
+                'status': prop.get('statusText', 'Unknown'),
+                'image_url': prop.get('imgSrc', '')
+            }
         return None
     except Exception as e:
         return None
@@ -118,68 +96,45 @@ def scrape_zillow_comps(zipcode, beds, baths, sqft, year_built):
         "minSize": min_sqft_range,
         "maxSize": max_sqft_range,
         "maxSoldDate": "6m",
-        "maxItems": 30
+        "maxItems": 20
     }
     
     try:
+        # Use synchronous call with waitForFinish
         response = requests.post(
-            'https://api.apify.com/v2/acts/igolaizola~zillow-scraper-ppe/runs',
-            headers={'Authorization': f'Bearer {APIFY_TOKEN}'},
+            'https://api.apify.com/v2/acts/igolaizola~zillow-scraper-ppe/run-sync-get-dataset-items?token=' + APIFY_TOKEN,
             json=actor_input,
-            timeout=120
+            timeout=300
         )
         
-        if response.status_code != 201:
+        if response.status_code != 200 and response.status_code != 201:
             return get_demo_comps(zipcode, sqft)
         
-        run_data = response.json()
-        run_id = run_data['data']['id']
+        comps = response.json()
+        processed_comps = []
         
-        for i in range(60):
-            time.sleep(3)
-            status_response = requests.get(
-                f'https://api.apify.com/v2/actor-runs/{run_id}',
-                headers={'Authorization': f'Bearer {APIFY_TOKEN}'}
-            )
-            status_data = status_response.json()
-            status = status_data['data']['status']
-            
-            if status == 'SUCCEEDED':
-                dataset_id = status_data['data']['defaultDatasetId']
-                results_response = requests.get(
-                    f'https://api.apify.com/v2/datasets/{dataset_id}/items',
-                    headers={'Authorization': f'Bearer {APIFY_TOKEN}'}
-                )
+        for comp in comps:
+            if (comp.get('bedrooms') and comp.get('bathrooms') and 
+                comp.get('livingArea') and comp.get('price')):
                 
-                comps = results_response.json()
-                processed_comps = []
+                if not comp.get('address'):
+                    comp['address'] = {
+                        'streetAddress': comp.get('streetAddress', 'Unknown'),
+                        'city': comp.get('city', ''),
+                        'state': comp.get('state', 'GA'),
+                        'zipcode': comp.get('zipcode', zipcode)
+                    }
+                if not isinstance(comp.get('price'), dict):
+                    comp['price'] = {'value': comp.get('price', 0)}
                 
-                for comp in comps:
-                    if (comp.get('bedrooms') and comp.get('bathrooms') and 
-                        comp.get('livingArea') and comp.get('price')):
-                        
-                        if not comp.get('address'):
-                            comp['address'] = {
-                                'streetAddress': comp.get('streetAddress', 'Unknown'),
-                                'city': comp.get('city', ''),
-                                'state': comp.get('state', 'GA'),
-                                'zipcode': comp.get('zipcode', zipcode)
-                            }
-                        if not isinstance(comp.get('price'), dict):
-                            comp['price'] = {'value': comp.get('price', 0)}
-                        
-                        comp['price_per_sqft'] = round(comp['price']['value'] / comp['livingArea'], 2)
-                        comp['distance_miles'] = 0.0
-                        comp['latitude'] = comp.get('latitude', comp.get('latLong', {}).get('latitude'))
-                        comp['longitude'] = comp.get('longitude', comp.get('latLong', {}).get('longitude'))
-                        processed_comps.append(comp)
-                
-                if processed_comps:
-                    return processed_comps[:10]
-                return get_demo_comps(zipcode, sqft)
-            elif status == 'FAILED':
-                return get_demo_comps(zipcode, sqft)
+                comp['price_per_sqft'] = round(comp['price']['value'] / comp['livingArea'], 2)
+                comp['distance_miles'] = 0.0
+                comp['latitude'] = comp.get('latitude', comp.get('latLong', {}).get('latitude'))
+                comp['longitude'] = comp.get('longitude', comp.get('latLong', {}).get('longitude'))
+                processed_comps.append(comp)
         
+        if processed_comps:
+            return processed_comps[:10]
         return get_demo_comps(zipcode, sqft)
     except Exception as e:
         return get_demo_comps(zipcode, sqft)
