@@ -258,6 +258,52 @@ function RealEstateAnalyzer() {
             </div>
           </div>
 
+          {/* Comparable Sales Table */}
+          {results.comps.properties && results.comps.properties.length > 0 && (
+            <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', marginBottom: '25px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h2 style={{ margin: '0 0 20px 0', color: '#334155' }}>Comparable Sales</h2>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                  <thead>
+                    <tr style={{ background: '#f1f5f9' }}>
+                      <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>Address</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0' }}>Sale Price</th>
+                      <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #e2e8f0' }}>Beds/Baths</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0' }}>SqFt</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0' }}>$/SqFt</th>
+                      <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0' }}>Distance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.comps.properties.map((comp, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px' }}>
+                          {comp.address?.streetAddress || comp.streetAddress || 'N/A'}
+                          {(comp.address?.city || comp.city) && <span style={{ color: '#6b7280' }}>, {comp.address?.city || comp.city}</span>}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: '600' }}>
+                          {formatCurrency(comp.price?.value || comp.price)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          {comp.bedrooms}/{comp.bathrooms}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          {(comp.livingArea || 0).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          ${comp.price_per_sqft || 0}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          {comp.distance_miles !== undefined ? `${comp.distance_miles} mi` : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Best Strategy Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '25px' }}>
             {results.best_flip && (
@@ -315,42 +361,111 @@ function RealEstateAnalyzer() {
                     <div style={{ fontSize: '18px', fontWeight: '700', color: '#1f2937' }}>
                       {idx === 0 && <span style={{ background: '#22c55e', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', marginRight: '10px' }}>BEST</span>}
                       {scenario.name}
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
-                      {scenario.type === 'rental' ? (
-                        <>
-                          Rent: {formatCurrency(scenario.monthly_rent)}/mo | 
-                          Cash Flow: {formatCurrency(scenario.monthly_cash_flow)}/mo | 
-                          Vacancy: {scenario.vacancy_rate}%
-                        </>
-                      ) : scenario.type === 'wholesale' ? (
-                        <>
-                          Assignment Fee: {formatCurrency(scenario.profit)} | 
-                          Timeline: {scenario.timeline}
-                        </>
-                      ) : (
-                        <>
-                          Investment: {formatCurrency(scenario.total_investment)} | 
-                          Profit: {formatCurrency(scenario.profit)} | 
-                          Timeline: {scenario.timeline}
-                        </>
-                      )}
+                      {scenario.meets_70_rule === false && <span style={{ background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', marginLeft: '10px' }}>FAILS 70% RULE</span>}
+                      {scenario.meets_70_rule === true && <span style={{ background: '#22c55e', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', marginLeft: '10px' }}>MEETS 70% RULE</span>}
                     </div>
                     
-                    {scenario.type === 'rental' && scenario.room_breakdown && (
-                      <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '5px' }}>
-                        Rooms: {scenario.room_breakdown.map((r, i) => `$${r}`).join(' + ')} = {formatCurrency(scenario.monthly_rent)}
+                    {scenario.type === 'rental' && (
+                      <div style={{ marginTop: '10px', fontSize: '13px', color: '#4b5563' }}>
+                        <div><strong>Rent:</strong> {formatCurrency(scenario.monthly_rent)}/mo | <strong>Vacancy:</strong> {scenario.vacancy_rate}% ({formatCurrency(scenario.vacancy)})</div>
+                        <div><strong>EGI:</strong> {formatCurrency(scenario.effective_gross_income)} | <strong>NOI:</strong> {formatCurrency(scenario.noi)}</div>
+                        
+                        {scenario.expenses && (
+                          <div style={{ marginTop: '8px', padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '5px' }}>Monthly Expenses (50% Rule):</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px', fontSize: '12px' }}>
+                              <span>Mgmt: {formatCurrency(scenario.expenses.management)}</span>
+                              <span>Repairs: {formatCurrency(scenario.expenses.repairs)}</span>
+                              <span>CapEx: {formatCurrency(scenario.expenses.capex)}</span>
+                              <span>Taxes: {formatCurrency(scenario.expenses.taxes)}</span>
+                              <span>Insurance: {formatCurrency(scenario.expenses.insurance)}</span>
+                              {scenario.expenses.utilities && <span>Utilities: {formatCurrency(scenario.expenses.utilities)}</span>}
+                            </div>
+                            <div style={{ marginTop: '5px', fontWeight: '600' }}>Total: {formatCurrency(scenario.expenses.total)}</div>
+                          </div>
+                        )}
+                        
+                        {scenario.financing && (
+                          <div style={{ marginTop: '8px', padding: '10px', background: '#eff6ff', borderRadius: '6px' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '5px' }}>Financing (20% Down, 7% Rate):</div>
+                            <div style={{ fontSize: '12px' }}>
+                              <span>Down: {formatCurrency(scenario.financing.down_payment)} | </span>
+                              <span>Loan: {formatCurrency(scenario.financing.loan_amount)} | </span>
+                              <span>P&I: {formatCurrency(scenario.monthly_mortgage)}/mo</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div style={{ marginTop: '8px' }}>
+                          <strong>Cash Flow:</strong> {formatCurrency(scenario.monthly_cash_flow)}/mo | {formatCurrency(scenario.annual_cash_flow)}/yr
+                        </div>
+                        <div><strong>Cash Invested:</strong> {formatCurrency(scenario.cash_invested)} | <strong>DSCR:</strong> {scenario.dscr}</div>
+                        
+                        {scenario.room_breakdown && (
+                          <div style={{ marginTop: '5px' }}>
+                            <strong>Rooms:</strong> {scenario.room_breakdown.map((r, i) => `$${r}`).join(' + ')} = {formatCurrency(scenario.monthly_rent)}
+                          </div>
+                        )}
+                        
+                        {scenario.fmr && (
+                          <div><strong>FMR:</strong> {formatCurrency(scenario.fmr)} | Gov: {scenario.government_portion} | Tenant: {scenario.tenant_portion}</div>
+                        )}
                       </div>
                     )}
                     
-                    {scenario.type === 'rental' && scenario.fmr && (
-                      <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '5px' }}>
-                        FMR: {formatCurrency(scenario.fmr)} | Gov: {scenario.government_portion} | Tenant: {scenario.tenant_portion}
+                    {scenario.type === 'flip' && (
+                      <div style={{ marginTop: '10px', fontSize: '13px', color: '#4b5563' }}>
+                        <div><strong>Purchase:</strong> {formatCurrency(scenario.purchase_price)} | <strong>Rehab:</strong> {formatCurrency(scenario.rehab_cost)} | <strong>ARV:</strong> {formatCurrency(scenario.arv)}</div>
+                        <div><strong>Max Purchase (70% Rule):</strong> {formatCurrency(scenario.max_purchase_70_rule)}</div>
+                        
+                        {scenario.financing && (
+                          <div style={{ marginTop: '8px', padding: '10px', background: '#fef3c7', borderRadius: '6px' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '5px' }}>Hard Money (10% Down, 3 Points, 10% Rate):</div>
+                            <div style={{ fontSize: '12px' }}>
+                              <span>Down: {formatCurrency(scenario.financing.down_payment)} | </span>
+                              <span>Loan: {formatCurrency(scenario.financing.loan_amount)} | </span>
+                              <span>Points: {formatCurrency(scenario.financing.points)} | </span>
+                              <span>Interest: {formatCurrency(scenario.financing.interest_cost)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {scenario.costs && (
+                          <div style={{ marginTop: '8px', padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '5px' }}>All Costs:</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px', fontSize: '12px' }}>
+                              <span>Purchase: {formatCurrency(scenario.costs.purchase)}</span>
+                              <span>Rehab: {formatCurrency(scenario.costs.rehab)}</span>
+                              <span>Points: {formatCurrency(scenario.costs.points)}</span>
+                              <span>Interest: {formatCurrency(scenario.costs.interest)}</span>
+                              <span>Closing (Buy): {formatCurrency(scenario.costs.closing_buy)}</span>
+                              <span>Closing (Sell): {formatCurrency(scenario.costs.closing_sell)}</span>
+                              <span>Holding: {formatCurrency(scenario.costs.holding)}</span>
+                              <span style={{ fontWeight: '600' }}>Total: {formatCurrency(scenario.costs.total)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div style={{ marginTop: '8px' }}>
+                          <strong>Cash Needed:</strong> {formatCurrency(scenario.cash_needed)} | <strong>Timeline:</strong> {scenario.timeline}
+                        </div>
+                        <div>
+                          <strong>Gross Profit:</strong> {formatCurrency(scenario.gross_profit)} ({scenario.gross_profit_pct}%) | 
+                          <strong> Net Profit:</strong> {formatCurrency(scenario.profit)} ({scenario.net_profit_pct}%)
+                        </div>
+                      </div>
+                    )}
+                    
+                    {scenario.type === 'wholesale' && (
+                      <div style={{ marginTop: '10px', fontSize: '13px', color: '#4b5563' }}>
+                        <div><strong>Contract Price:</strong> {formatCurrency(scenario.details.contract_price)}</div>
+                        <div><strong>Assignment Fee:</strong> {formatCurrency(scenario.profit)} | <strong>Buyer Price:</strong> {formatCurrency(scenario.details.buyer_price)}</div>
+                        <div><strong>Earnest Money:</strong> {formatCurrency(scenario.details.earnest_money)} | <strong>Timeline:</strong> {scenario.timeline}</div>
                       </div>
                     )}
                   </div>
                   
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', minWidth: '100px' }}>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: scenario.roi > 0 ? '#22c55e' : '#ef4444' }}>
                       {scenario.roi}%
                     </div>
@@ -359,7 +474,7 @@ function RealEstateAnalyzer() {
                     </div>
                     {scenario.cap_rate && (
                       <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '5px' }}>
-                        Cap Rate: {scenario.cap_rate}%
+                        Cap: {scenario.cap_rate}%
                       </div>
                     )}
                   </div>
