@@ -1,1 +1,30 @@
+# Real Estate Investment Analyzer
 
+Property analysis tool with:
+- Property lookup (any address via Zillow/Apify)
+- Comparable sales analysis
+- 7 investment scenarios:
+  - Fix & Flip (Light, Medium, Heavy)
+  - Wholesale Assignment
+  - Open Market Rental
+  - Section 8 Rental
+  - Rent-by-Room
+- PDF/Excel report generation
+
+## Deploy to Vercel
+
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variable: `APIFY_API_TOKEN`
+4. Deploy
+
+## Environment Variables
+
+- `APIFY_API_TOKEN` - Your Apify API token
+
+## Local Development
+
+```bash
+pip install -r requirements.txt
+cd api && python index.py
+```
