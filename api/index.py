@@ -102,6 +102,8 @@ def scrape_zillow_comps(zipcode, beds, baths, sqft, year_built):
     
     min_year = max(1900, year_built - 10) if year_built else 1900
     max_year = (year_built + 10) if year_built else 2025
+    min_sqft_range = str(int(sqft * 0.8))
+    max_sqft_range = str(int(sqft * 1.2))
     
     actor_input = {
         "location": zipcode,
@@ -113,8 +115,8 @@ def scrape_zillow_comps(zipcode, beds, baths, sqft, year_built):
         "homeTypes": ["houses"],
         "minYearBuilt": min_year,
         "maxYearBuilt": max_year,
-        "minSize": str(int(sqft * 0.8)),
-        "maxSize": str(int(sqft * 1.2)),
+        "minSize": min_sqft_range,
+        "maxSize": max_sqft_range,
         "maxSoldDate": "6m",
         "maxItems": 30
     }
@@ -153,23 +155,28 @@ def scrape_zillow_comps(zipcode, beds, baths, sqft, year_built):
                 processed_comps = []
                 
                 for comp in comps:
-                    if comp.get('bedrooms') and comp.get('bathrooms') and comp.get('livingArea') and comp.get('price'):
+                    if (comp.get('bedrooms') and comp.get('bathrooms') and 
+                        comp.get('livingArea') and comp.get('price')):
+                        
                         if not comp.get('address'):
                             comp['address'] = {
                                 'streetAddress': comp.get('streetAddress', 'Unknown'),
                                 'city': comp.get('city', ''),
-                                'state': comp.get('state', ''),
+                                'state': comp.get('state', 'GA'),
                                 'zipcode': comp.get('zipcode', zipcode)
                             }
-                        if not comp.get('price', {}).get('value'):
+                        if not isinstance(comp.get('price'), dict):
                             comp['price'] = {'value': comp.get('price', 0)}
+                        
                         comp['price_per_sqft'] = round(comp['price']['value'] / comp['livingArea'], 2)
                         comp['distance_miles'] = 0.0
                         comp['latitude'] = comp.get('latitude', comp.get('latLong', {}).get('latitude'))
                         comp['longitude'] = comp.get('longitude', comp.get('latLong', {}).get('longitude'))
                         processed_comps.append(comp)
                 
-                return processed_comps[:10]
+                if processed_comps:
+                    return processed_comps[:10]
+                return get_demo_comps(zipcode, sqft)
             elif status == 'FAILED':
                 return get_demo_comps(zipcode, sqft)
         
